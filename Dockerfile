@@ -19,7 +19,10 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --no-dev --no-install-project
 
 # Headless Chromium and its system libraries, for listings with a "load more" button.
-RUN playwright install --with-deps --only-shell chromium \
+# Playwright's bundled Node needs libatomic1, which the slim image does not ship.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && playwright install --with-deps --only-shell chromium \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .
