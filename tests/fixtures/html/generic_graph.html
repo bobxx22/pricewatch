@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Synthetic page: JSON-LD in an @graph, an AggregateOffer inside a list and an ImageObject,
+     the shapes the generic parser has to cope with on shops it has never seen. -->
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<script type="application/ld+json">{broken json that some shops really ship</script>
+<script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@graph": [
+    {"@type": "WebSite", "name": "Example shop"},
+    {
+      "@type": "WebPage",
+      "mainEntity": {
+        "@type": ["Product", "Thing"],
+        "name": "  Навушники   Example Buds  ",
+        "sku": 12345,
+        "image": {"@type": "ImageObject", "url": "https://shop.example.com/buds.jpg"},
+        "offers": [
+          {
+            "@type": "AggregateOffer",
+            "lowPrice": 1299,
+            "highPrice": 1499,
+            "priceCurrency": "uah",
+            "availability": "https://schema.org/LimitedAvailability"
+          }
+        ]
+      }
+    }
+  ]
+}</script>
+</head>
+<body><h1>Навушники Example Buds</h1></body>
+</html>

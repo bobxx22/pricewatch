@@ -1,0 +1,903 @@
+/* PriceWatch dashboard.
+   The page borrows from a shop shelf: prices are the loudest thing, and yellow means
+   only one thing, a discount, the way promo price tags work in Ukrainian supermarkets. */
+
+:root {
+  color-scheme: light dark;
+
+  --paper: #f3f5f7;
+  --surface: #ffffff;
+  --ink: #17233a;
+  --ink-2: #46536a;
+  --muted: #5f6b7e;
+  --line: #dce1e8;
+  --grid: #e6eaf0;
+  --axis: #b9c1cd;
+  --promo: #ffd21f;
+  --on-promo: #17233a;
+  --series: #1f5fd1;
+  --good-text: #0b6b3a;
+  --bad-text: #b42318;
+  --band: #eef1f5;
+  --focus: #1f5fd1;
+  --button: #17233a;
+  --on-button: #ffffff;
+  --tooltip: #17233a;
+  --on-tooltip: #ffffff;
+
+  --font-ui: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-figures: "Unbounded", "Onest", system-ui, sans-serif;
+  --text-s: 0.8125rem;
+  --text-m: 1rem;
+  --text-l: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.953rem;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --gutter: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0f141b;
+    --surface: #161d27;
+    --ink: #e8edf3;
+    --ink-2: #b4becc;
+    --muted: #8e99a9;
+    --line: #263142;
+    --grid: #212a37;
+    --axis: #3a4658;
+    --series: #5c8fea;
+    --good-text: #5bc896;
+    --bad-text: #f48b80;
+    --band: #1c2532;
+    --focus: #8db3ff;
+    --button: #e8edf3;
+    --on-button: #0f141b;
+    --tooltip: #e8edf3;
+    --on-tooltip: #0f141b;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--text-m) / 1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+s {
+  text-decoration-thickness: 1px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-s);
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+/* --- Frame --------------------------------------------------------------------- */
+
+.site-header,
+.page,
+.site-footer {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 32px;
+  padding-block: 20px 8px;
+}
+
+.wordmark {
+  font: 700 1.125rem / 1 var(--font-figures);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  gap: 20px;
+}
+
+.site-nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.page {
+  padding-bottom: 48px;
+}
+
+.site-footer {
+  padding-block: 24px 40px;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.section-title {
+  margin: 0 0 12px;
+  font: 600 var(--text-l) / 1.3 var(--font-ui);
+  letter-spacing: -0.01em;
+}
+
+.empty {
+  color: var(--ink-2);
+}
+
+/* --- The shelf tags: the one loud thing on the page ------------------------------ */
+
+.drops {
+  margin: 24px 0 36px;
+}
+
+.drops__title {
+  margin: 0 0 16px;
+  font: 600 var(--text-2xl) / 1.15 var(--font-ui);
+  letter-spacing: -0.02em;
+}
+
+.drops__empty {
+  max-width: 60ch;
+  color: var(--ink-2);
+}
+
+/* One shelf: a single row that scrolls sideways when the tags do not fit. */
+.tags {
+  display: grid;
+  grid-auto-columns: minmax(200px, 1fr);
+  grid-auto-flow: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  list-style: none;
+}
+
+.tags > li {
+  scroll-snap-align: start;
+}
+
+.tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  padding: 14px 16px 16px;
+  background: var(--promo);
+  color: var(--on-promo);
+  border-radius: var(--radius-s);
+  text-decoration: none;
+}
+
+/* The punched hole a shelf tag hangs from. */
+.tag::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.tag__percent,
+.label__percent {
+  align-self: flex-start;
+  padding: 3px 8px 2px;
+  background: var(--on-promo);
+  color: var(--promo);
+  font: 700 var(--text-s) / 1.3 var(--font-figures);
+  border-radius: 2px;
+}
+
+.tag__price {
+  margin-top: 10px;
+  font: 700 1.75rem / 1.05 var(--font-figures);
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.tag__was,
+.label__was {
+  font-size: var(--text-s);
+}
+
+.tag__title {
+  display: -webkit-box;
+  margin-top: 10px;
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.35;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.tag:hover .tag__title {
+  text-decoration: underline;
+}
+
+.tag__shop {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: var(--text-s);
+}
+
+.summary {
+  max-width: 66ch;
+  margin: 0 0 28px;
+  color: var(--ink-2);
+  font-size: var(--text-l);
+  line-height: 1.5;
+}
+
+.summary strong {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Filters ------------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--line);
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.field--grow {
+  flex: 1 1 260px;
+}
+
+.field__label {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.field input,
+.field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+
+.filters__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--button);
+  color: var(--on-button);
+  font: 600 0.9375rem / 1 var(--font-ui);
+  cursor: pointer;
+}
+
+.link-button {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+/* --- Tables -------------------------------------------------------------------- */
+
+.results {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.results p {
+  margin: 0 0 10px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+}
+
+.products {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.products th {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-s);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.products td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--grid);
+  vertical-align: top;
+}
+
+.products tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.products .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.product__title {
+  display: block;
+  max-width: 58ch;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.product__title:hover {
+  text-decoration: underline;
+}
+
+.product__shop,
+.price__was,
+.check-failed {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.check-failed {
+  color: var(--bad-text);
+}
+
+.price__now {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.price__was {
+  white-space: nowrap;
+}
+
+.promo {
+  display: inline-block;
+  padding: 0 5px;
+  background: var(--promo);
+  color: var(--on-promo);
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.trend {
+  white-space: nowrap;
+}
+
+.spark {
+  display: inline-block;
+  width: 72px;
+  height: 22px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+.spark__line {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.spark__dot {
+  fill: var(--series);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.change {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.change--down {
+  color: var(--good-text);
+}
+
+.change--up {
+  color: var(--bad-text);
+}
+
+.change--none,
+.muted {
+  color: var(--muted);
+}
+
+.stock {
+  white-space: nowrap;
+}
+
+.stock__icon {
+  display: inline-block;
+  width: 1.2em;
+  font-weight: 700;
+}
+
+.stock--in .stock__icon {
+  color: var(--good-text);
+}
+
+.stock--out .stock__icon {
+  color: var(--bad-text);
+}
+
+.stock--unknown {
+  color: var(--muted);
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 20px;
+  color: var(--ink-2);
+}
+
+/* --- Product page -------------------------------------------------------------- */
+
+.crumbs {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 8px;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.product-head__title {
+  max-width: 40ch;
+  margin: 0;
+  font: 600 var(--text-xl) / 1.25 var(--font-ui);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.product-head__meta {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  margin: 24px 0 40px;
+}
+
+.label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.label--promo {
+  background: var(--promo);
+  color: var(--on-promo);
+  border-color: transparent;
+}
+
+.label--promo::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.label__percent {
+  margin-bottom: 10px;
+}
+
+.label__price {
+  margin: 0;
+  font: 700 2.25rem / 1.05 var(--font-figures);
+  letter-spacing: -0.03em;
+}
+
+.label__was {
+  margin: 6px 0 0;
+}
+
+.facts {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 0.9375rem;
+}
+
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.facts dt {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.label--promo .stock--in .stock__icon,
+.label--promo .stock--out .stock__icon {
+  color: inherit;
+}
+
+.label__error {
+  margin: 16px 0 0;
+  color: var(--bad-text);
+  font-size: var(--text-s);
+}
+
+.label--promo .label__error {
+  color: inherit;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: 20px 20px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+}
+
+.chart {
+  position: relative;
+  margin: 0;
+}
+
+.chart--compact {
+  display: none;
+}
+
+.chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-ui);
+}
+
+.chart__svg:focus-visible {
+  outline-offset: 4px;
+}
+
+.chart__band {
+  fill: var(--band);
+}
+
+.chart__grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.chart__tick {
+  fill: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__line {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart__dot,
+.chart__focus {
+  fill: var(--series);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart__label {
+  fill: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__hover {
+  visibility: hidden;
+}
+
+.chart.is-active .chart__hover {
+  visibility: visible;
+}
+
+.chart__crosshair {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.chart__tooltip {
+  position: absolute;
+  z-index: 1;
+  display: none;
+  padding: 6px 10px;
+  background: var(--tooltip);
+  color: var(--on-tooltip);
+  border-radius: var(--radius-s);
+  font-size: var(--text-s);
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+
+.chart.is-active .chart__tooltip {
+  display: grid;
+}
+
+.chart__tooltip strong {
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.chart-legend__band {
+  width: 16px;
+  height: 12px;
+  background: var(--band);
+  border: 1px solid var(--line);
+}
+
+.col-checked {
+  white-space: nowrap;
+}
+
+/* --- Small screens --------------------------------------------------------------- */
+
+/* Below this width the chart gets the full row, so its text stays near 100% scale. */
+@media (max-width: 1000px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .label {
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --gutter: 16px;
+  }
+
+  .label {
+    max-width: none;
+  }
+
+  .chart--wide {
+    display: none;
+  }
+
+  .chart--compact {
+    display: block;
+  }
+
+  .col-checked,
+  .spark {
+    display: none;
+  }
+
+  .products th,
+  .products td {
+    padding: 12px 8px;
+  }
+
+  /* The product list turns each row into a two-line entry:
+     name and price first, then the last change and stock status. */
+  .products--list thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .products--list tr {
+    display: grid;
+    grid-template-areas:
+      "product price"
+      "trend stock";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 16px;
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--grid);
+  }
+
+  .products--list tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .products--list td {
+    padding: 0;
+    border: 0;
+  }
+
+  .products--list .product {
+    grid-area: product;
+  }
+
+  .products--list .price {
+    grid-area: price;
+  }
+
+  .products--list .trend {
+    grid-area: trend;
+  }
+
+  .products--list .stock-cell {
+    grid-area: stock;
+    text-align: right;
+  }
+
+  .products--list .empty {
+    grid-column: 1 / -1;
+  }
+
+  /* Other tables: icon only; the words stay available to screen readers. */
+  .products:not(.products--list) .stock__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .price__was {
+    white-space: normal;
+  }
+
+  .drops__title {
+    font-size: var(--text-xl);
+  }
+
+  /* One tag and the edge of the next: the shelf visibly continues. */
+  .tags {
+    grid-auto-columns: 74%;
+  }
+
+  .summary {
+    font-size: var(--text-m);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .tag,
+  .label--promo {
+    border: 2px solid CanvasText;
+  }
+}

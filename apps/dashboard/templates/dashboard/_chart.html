@@ -1,0 +1,26 @@
+<figure class="chart chart--{{ size }}" data-chart>
+  <svg class="chart__svg" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img"
+       aria-label="{{ chart.summary }} Стрілками вліво й вправо можна пройти зміни ціни." tabindex="0">
+    {% for band in chart.bands %}
+      <rect class="chart__band" x="{{ band.x }}" y="{{ chart.top }}" width="{{ band.width }}" height="{{ chart.plot_height }}"/>
+    {% endfor %}
+    {% for tick in chart.y_ticks %}
+      <line class="chart__grid" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ tick.position }}" y2="{{ tick.position }}"/>
+      <text class="chart__tick" x="{{ chart.tick_label_x }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>
+    {% endfor %}
+    {% for tick in chart.x_ticks %}
+      <text class="chart__tick" x="{{ tick.position }}" y="{{ chart.x_label_y }}" text-anchor="middle">{{ tick.label }}</text>
+    {% endfor %}
+    <path class="chart__line" d="{{ chart.line_path }}"/>
+    {% for marker in chart.markers %}
+      <circle class="chart__dot" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4"/>
+      <text class="chart__label" x="{{ marker.label_x }}" y="{{ marker.label_y }}" text-anchor="{{ marker.anchor }}">{{ marker.label }}</text>
+    {% endfor %}
+    <g class="chart__hover">
+      <line class="chart__crosshair" x1="0" x2="0" y1="{{ chart.top }}" y2="{{ chart.bottom }}"/>
+      <circle class="chart__focus" cx="0" cy="0" r="5"/>
+    </g>
+  </svg>
+  <div class="chart__tooltip" role="status" aria-live="polite"></div>
+  {{ chart.points|json_script:points_id }}
+</figure>

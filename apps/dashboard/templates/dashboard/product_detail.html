@@ -1,0 +1,83 @@
+{% extends "dashboard/base.html" %}
+{% load static pricewatch %}
+
+{% block title %}{{ product.title|default:product.url|truncatechars:60 }} | PriceWatch{% endblock %}
+
+{% block content %}
+<nav class="crumbs" aria-label="Ви тут">
+  <a href="{% url 'dashboard:index' %}">Товари</a>
+  <span aria-hidden="true">/</span>
+  <a href="{% url 'dashboard:index' %}?shop={{ product.shop.domain|urlencode }}">{{ product.shop.name }}</a>
+</nav>
+
+<header class="product-head">
+  <h1 class="product-head__title">{{ product.title|default:product.url }}</h1>
+  <p class="product-head__meta">
+    <a href="{{ product.url }}" target="_blank" rel="noopener noreferrer">Сторінка товару в магазині «{{ product.shop.name }}»</a>{% if product.sku %}, артикул {{ product.sku }}{% endif %}
+  </p>
+</header>
+
+<div class="overview">
+  <section class="label{% if product.old_price %} label--promo{% endif %}" aria-label="Поточна ціна">
+    {% if product.old_price %}<span class="label__percent">−{{ product.discount_percent }}%</span>{% endif %}
+    <p class="label__price">{{ product.price|money:product.currency }}</p>
+    {% if product.old_price %}<p class="label__was">замість <s>{{ product.old_price|money:product.currency }}</s></p>{% endif %}
+    <dl class="facts">
+      <div><dt>Наявність</dt><dd>{% stock product.is_available %}</dd></div>
+      {% if lowest and lowest.price != highest.price %}
+        <div><dt>Найнижча</dt><dd>{{ lowest.price|money:product.currency }}, {{ lowest.recorded_at|date:"d.m.Y" }}</dd></div>
+        <div><dt>Найвища</dt><dd>{{ highest.price|money:product.currency }}, {{ highest.recorded_at|date:"d.m.Y" }}</dd></div>
+      {% endif %}
+      <div><dt>Перевірено</dt><dd>{{ product.last_checked_at|ago }}</dd></div>
+    </dl>
+    {% if product.last_error %}
+      <p class="label__error">Остання перевірка не вдалася: {{ product.last_error|truncatechars:160 }}</p>
+    {% endif %}
+  </section>
+
+  <section class="chart-card" aria-labelledby="chart-title">
+    <h2 id="chart-title" class="section-title">Як змінювалась ціна</h2>
+    {% if chart %}
+      {% include "dashboard/_chart.html" with chart=chart size="wide" points_id="chart-points-wide" %}
+      {% include "dashboard/_chart.html" with chart=chart_compact size="compact" points_id="chart-points-compact" %}
+      {% if has_bands %}
+        <p class="chart-legend"><span class="chart-legend__band" aria-hidden="true"></span>Товару не було в наявності</p>
+      {% endif %}
+    {% else %}
+      <p class="empty">Графік з'явиться після першої вдалої перевірки ціни.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="changes" aria-labelledby="changes-title">
+  <h2 id="changes-title" class="section-title">Усі зміни</h2>
+  {% if changes %}
+    <div class="table-wrap">
+      <table class="products">
+        <thead>
+          <tr>
+            <th scope="col">Коли</th>
+            <th scope="col" class="num">Ціна</th>
+            <th scope="col">Зміна</th>
+            <th scope="col">Наявність</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for change in changes %}
+            <tr>
+              <td>{{ change.recorded_at|date:"d.m.Y H:i" }}</td>
+              <td class="num"><span class="price__now">{{ change.price|money:product.currency }}</span></td>
+              <td>{% if change.previous_price is not None %}{% delta change.previous_price change.price %}{% else %}<span class="change change--none">перша перевірка</span>{% endif %}</td>
+              <td>{% stock change.is_available %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">Змін ще не було.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'dashboard/chart.js' %}" defer></script>{% endblock %}

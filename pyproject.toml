@@ -1,0 +1,58 @@
+[project]
+name = "pricewatch"
+version = "0.1.0"
+description = "Price and stock tracker for online shops: Django, Celery, scrapers and a Telegram bot."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.34.0",
+    "beautifulsoup4>=4.15.0",
+    "celery[redis]>=5.7.0",
+    "django>=6.1.3",
+    "django-environ>=0.14.0",
+    "django-filter>=26.2",
+    "djangorestframework>=3.18.3",
+    "drf-spectacular>=0.30.0",
+    "gunicorn>=27.0.1",
+    "lxml>=6.1.3",
+    "openpyxl>=3.1.5",
+    "playwright>=1.65.2",
+    "psycopg[binary]>=3.3.9",
+    "requests>=2.34.2",
+    "whitenoise>=6.12.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-django>=4.14.0",
+    "ruff>=0.17.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m 'not live'"
+# STATIC_ROOT exists only after collectstatic, which tests do not need.
+filterwarnings = ["ignore:No directory at:UserWarning"]
+markers = [
+    "live: hits real shop websites; run explicitly with `pytest -m live`",
+    "integration: needs a running broker; skipped without one unless REQUIRE_SERVICES=1",
+    "browser: needs headless Chromium; skipped without one unless REQUIRE_BROWSER=1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["apps/*/migrations"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "DJ", "PT", "RUF"]
+# Ukrainian text in tests and fixtures looks "ambiguous" to these rules.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config", "scraping", "tests"]

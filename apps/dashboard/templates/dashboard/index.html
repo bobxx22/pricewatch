@@ -1,0 +1,147 @@
+{% extends "dashboard/base.html" %}
+{% load pricewatch %}
+
+{% block title %}PriceWatch: ціни під наглядом{% endblock %}
+
+{% block content %}
+<section class="drops" aria-labelledby="drops-title">
+  <h1 id="drops-title" class="drops__title">{{ tags_title }}</h1>
+  {% if tags %}
+    <ol class="tags">
+      {% for tag in tags %}
+        <li>
+          <a class="tag" href="{% url 'dashboard:product' tag.product_id %}">
+            <span class="tag__percent">−{{ tag.off }}%</span>
+            <span class="tag__price">{{ tag.price|money:tag.currency }}</span>
+            <span class="tag__was">замість <s>{{ tag.was|money:tag.currency }}</s></span>
+            <span class="tag__title">{{ tag.title }}</span>
+            <span class="tag__shop">{{ tag.shop }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="drops__empty">Знижок поки немає. Щойно ціна на відстежуваний товар упаде, він з'явиться тут.</p>
+  {% endif %}
+</section>
+
+{% if summary.total %}
+  <p class="summary">
+    Під наглядом <strong>{{ summary.total }}</strong> {{ summary.total|uk_plural:"товар,товари,товарів" }}
+    з <strong>{{ summary.shops }}</strong> {{ summary.shops|uk_plural:"магазину,магазинів,магазинів" }}.
+    Зараз у наявності <strong>{{ summary.in_stock }}</strong>, зі знижкою <strong>{{ summary.on_sale }}</strong>,
+    подешевшало за тиждень <strong>{{ summary.dropped }}</strong>.
+  </p>
+{% endif %}
+
+<form class="filters" method="get" role="search" aria-label="Фільтри товарів">
+  <label class="field field--grow">
+    <span class="field__label">Пошук</span>
+    <input type="search" name="q" value="{{ current.q|default:'' }}" placeholder="Назва, посилання або артикул">
+  </label>
+  <label class="field">
+    <span class="field__label">Магазин</span>
+    <select name="shop">
+      <option value="">Усі</option>
+      {% for shop in shops %}
+        <option value="{{ shop.domain }}"{% if current.shop == shop.domain %} selected{% endif %}>{{ shop.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="field">
+    <span class="field__label">Наявність</span>
+    <select name="in_stock">
+      <option value="">Будь-яка</option>
+      <option value="true"{% if current.in_stock == "true" %} selected{% endif %}>В наявності</option>
+      <option value="false"{% if current.in_stock == "false" %} selected{% endif %}>Немає</option>
+    </select>
+  </label>
+  <label class="field">
+    <span class="field__label">Сортування</span>
+    <select name="sort">
+      {% for key, label in sorts %}
+        <option value="{{ key }}"{% if current.sort == key %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="check">
+    <input type="checkbox" name="on_sale" value="true"{% if current.on_sale == "true" %} checked{% endif %}>
+    Лише зі знижкою
+  </label>
+  <div class="filters__actions">
+    <button class="button" type="submit">Показати</button>
+    {% if is_filtered %}<a class="link-button" href="{% url 'dashboard:index' %}">Скинути фільтри</a>{% endif %}
+  </div>
+</form>
+
+<div class="results">
+  <p>
+    {% with total=page_obj.paginator.count %}Знайдено {{ total }} {{ total|uk_plural:"товар,товари,товарів" }}{% endwith %}
+  </p>
+  {% if page_obj.paginator.count %}
+    <p class="results__export">
+      Завантажити список:
+      <a href="{% url 'dashboard:export' 'csv' %}{% if query %}?{{ query }}{% endif %}" download>CSV</a>,
+      <a href="{% url 'dashboard:export' 'xlsx' %}{% if query %}?{{ query }}{% endif %}" download>Excel</a>
+    </p>
+  {% endif %}
+</div>
+
+<div class="table-wrap">
+  <table class="products products--list">
+    <thead>
+      <tr>
+        <th scope="col">Товар</th>
+        <th scope="col" class="num">Ціна</th>
+        <th scope="col">Остання зміна</th>
+        <th scope="col">Наявність</th>
+        <th scope="col" class="col-checked">Перевірено</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for product in products %}
+        <tr>
+          <td class="product">
+            <a class="product__title" href="{% url 'dashboard:product' product.pk %}">{{ product.title|default:product.url|truncatechars:110 }}</a>
+            <span class="product__shop">{{ product.shop.name }}</span>
+          </td>
+          <td class="num price">
+            <span class="price__now">{{ product.price|money:product.currency }}</span>
+            {% if product.old_price %}
+              <span class="price__was"><s>{{ product.old_price|money:product.currency }}</s> <span class="promo">−{{ product.discount_percent }}%</span></span>
+            {% endif %}
+          </td>
+          <td class="trend">{% sparkline product.recent_snapshots %}{% latest_delta product.recent_snapshots %}</td>
+          <td class="stock-cell">{% stock product.is_available %}</td>
+          <td class="col-checked muted">
+            {{ product.last_checked_at|ago }}
+            {% if product.last_error %}<span class="check-failed">перевірка не вдалася</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="empty">
+            {% if is_filtered %}
+              Під ці фільтри нічого не підходить. <a href="{% url 'dashboard:index' %}">Показати всі товари</a>
+            {% else %}
+              Ще немає товарів. Надішліть посилання Telegram-боту, додайте товар в <a href="{% url 'admin:catalog_product_add' %}">адмінці</a> або через <a href="{% url 'api:docs' %}">API</a>.
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <nav class="pager" aria-label="Сторінки">
+    {% if page_obj.has_previous %}
+      <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Попередня</a>
+    {% endif %}
+    <span>Сторінка {{ page_obj.number }} з {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Наступна</a>
+    {% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

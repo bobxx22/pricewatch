@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Celery beat
+celerybeat-schedule*
+
+# Local configuration and secrets
+.env
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

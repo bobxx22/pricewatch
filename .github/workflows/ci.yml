@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: pricewatch
+          POSTGRES_USER: pricewatch
+          POSTGRES_PASSWORD: pricewatch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pricewatch -d pricewatch"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgres://pricewatch:pricewatch@localhost:5432/pricewatch
+      REDIS_URL: redis://localhost:6379/0
+      DJANGO_SECRET_KEY: ci-only-not-a-secret
+      REQUIRE_SERVICES: "1"
+      REQUIRE_BROWSER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Headless Chromium for the browser tests
+        run: uv run playwright install --with-deps --only-shell chromium
+      - name: Migrations match the models
+        run: uv run python manage.py makemigrations --check --dry-run
+      - name: Django system checks
+        run: uv run python manage.py check
+      - name: Deployment checks
+        run: uv run python manage.py check --deploy --fail-level ERROR
+        env:
+          DJANGO_DEBUG: "false"
+          DJANGO_HTTPS: "true"
+          DJANGO_SECRET_KEY: ci-only-but-long-enough-to-pass-the-deploy-check-0123456789
+      - name: Tests on PostgreSQL, Redis and Chromium
+        run: uv run pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the compose files
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+      - name: Build the image
+        run: docker build --tag pricewatch:ci .
+      - name: Smoke-test Django in the image
+        run: docker run --rm pricewatch:ci python manage.py check
+      - name: Smoke-test headless Chromium in the image
+        run: >-
+          docker run --rm pricewatch:ci python -c
+          "from playwright.sync_api import sync_playwright as p;
+          b = p().start().chromium.launch(); print('chromium', b.version)"
